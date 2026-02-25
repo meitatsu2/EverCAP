@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>EverCAP v7.9.3</title>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="https://unpkg.com/docx@7.1.1/build/index.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js"></script>
+    <style>
+        :root { --primary: #008144; --bg: #f4f7f6; --dark: #1a1a1a; --danger: #dc3545; --accent: #2980b9; }
+        body { font-family: sans-serif; background: var(--bg); margin: 0; padding-bottom: 75px; }
+        header { background: var(--dark); color: white; padding: 12px; display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid var(--primary); }
+        .menu-btn { background: #333; border: none; color: white; font-size: 24px; padding: 5px 15px; border-radius: 4px; cursor: pointer; }
+        .dropdown-content { display: none; position: absolute; right: 10px; top: 50px; background: white; min-width: 250px; box-shadow: 0 8px 16px rgba(0,0,0,0.1); border-radius: 4px; z-index: 2000; }
+        .show { display: block !important; }
+        .dropdown-content button, .dropdown-content label { color: #333; padding: 12px; display: block; font-size: 14px; border: none; background: none; width: 100%; text-align: left; cursor: pointer; border-bottom: 1px solid #eee; }
+        .card { background: white; padding: 15px; margin: 10px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        .section-title { font-size: 11px; font-weight: bold; color: var(--primary); border-bottom: 1px solid #eee; margin: 15px 0 6px 0; padding-bottom: 2px; text-transform: uppercase; }
+        .weight-badge { float: right; background: var(--accent); color: white; padding: 2px 6px; border-radius: 4px; font-size: 10px; }
+        label { display: block; font-size: 10px; color: #666; font-weight: bold; margin-bottom: 2px; }
+        input, select, textarea { padding: 8px; border: 1px solid #ddd; border-radius: 6px; font-size: 13px; box-sizing: border-box; margin-bottom: 8px; font-family: inherit; }
+        input, select { height: 38px; }
+        textarea { width: 100%; height: 60px; resize: none; }
+        
+        /* Revised Width Requirements (Comments 1-5) */
+        .w-10ch { width: 110px !important; } 
+        .w-4ch { width: 68px !important; }  /* Grade ~4 chars */
+        .w-2ch { width: 48px !important; }  /* Sec, PCS, Dims ~2 chars */
+        .w-3ch { width: 55px !important; }  /* CH No ~3 chars */
+        
+        .flex-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-end; }
+        .thumb-container { position: relative; display: inline-block; margin-right: 8px; }
+        .thumb { width: 80px; height: 60px; object-fit: cover; border-radius: 4px; border: 1px solid #ccc; cursor: zoom-in; }
+        .del-img-btn { position: absolute; top: -8px; right: -8px; background: var(--danger); color: white; border: none; border-radius: 50%; width: 22px; height: 22px; cursor: pointer; font-weight: bold; z-index: 10; }
+        .nav-group { display: grid; grid-template-columns: 0.5fr 1fr 1.5fr 1fr 0.5fr; gap: 5px; margin-top: 15px; align-items: center; }
+        .btn { padding: 14px; border: none; border-radius: 6px; font-weight: bold; color: white; cursor: pointer; font-size: 16px; width: 100%; }
+        .btn-insert { background: var(--accent); margin-top: 15px; }
+        .btn-del { background: var(--danger); margin-top: 8px; }
+        .hidden { display: none !important; }
+        #imgModal { display: none; position: fixed; z-index: 3000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.9); justify-content: center; align-items: center; }
+        #modalImg { max-width: 95%; max-height: 95%; object-fit: contain; }
+    </style>
+</head>
+<body onclick="document.getElementById('myDropdown').classList.remove('show')">
+
+<header>
+    <span>EverCAP v7.9.3</span>
+    <button class="menu-btn" onclick="event.stopPropagation(); document.getElementById('myDropdown').classList.toggle('show')">☰</button>
+    <div id="myDropdown" class="dropdown-content">
+        <label for="fileImport">📂 Import Data</label><input type="file" id="fileImport" accept=".xlsx" hidden onchange="importExcel(this)">
+        <button onclick="exportToExcel()">💾 Save Excel</button>
+        <label for="reportGen">📝 Make Report from saved Excel</label><input type="file" id="reportGen" accept=".xlsx" hidden onchange="generateStrictReport(this)">
+        <button onclick="showAbout()">ℹ️ About this APP</button>
+    </div>
+</header>
+
+<div id="imgModal" onclick="this.style.display='none'"><img id="modalImg"></div>
+
+<div class="card">
+    <div class="section-title">Vessel & personnel</div>
+    <div class="flex-row">
+        <div style="flex:1"><label>Vessel</label><input type="text" id="vesselCode" style="width:100%"></div>
+        <div><label>Date</label><input type="date" id="inspDate" onchange="checkDateColor()"></div>
+        <div style="flex:1"><label>Inspector</label><input type="text" id="inspectorName" style="width:100%"></div>
+    </div>
+    <div class="flex-row" style="justify-content: space-between; margin-top:5px;">
+        <div style="flex:1"><label>MS</label><input type="text" id="pMS" style="width:90%"></div>
+        <div style="flex:1"><label>CE</label><input type="text" id="pCE" style="width:90%"></div>
+        <div style="flex:1"><label>CO</label><input type="text" id="pCO" style="width:90%"></div>
+        <div style="flex:1"><label>2E</label><input type="text" id="p2E" style="width:90%"></div>
+        <div style="flex:1"><label>BS</label><input type="text" id="pBS" style="width:90%"></div>
+    </div>
+
+    <div class="section-title">Area / Space Info</div>
+    <div class="flex-row">
+        <div><label>Cat.</label><select id="areaCat" class="w-10ch" onchange="handleAreaChange(this.value)">
+            <option value=""></option>
+            <option value="SHELL">SHELL</option>
+            <option value="UPPER DECK">UPPER DECK</option>
+            <option value="HATCH COAMING">HATCH COAMING</option>
+            <option value="HATCH COVER">HATCH COVER</option>
+            <option value="LASHING BRIDGE">LASHING BRIDGE</option>
+            <option value="FORE MOOR DK">FORE MOOR DK</option>
+            <option value="AFT MOOR DK">AFT MOOR DK</option>
+            <option value="ACCOMMODATION">ACCOMMODATION</option>
+            <option value="ENG CASING">ENG CASING</option>
+            <option value="CARGO HOLD">CARGO HOLD</option>
+            <option value="2D PASS">2D PASS</option>
+            <option value="WBT">WBT</option>
+            <option value="LWBT">LWBT</option>
+            <option value="DBWBT">DBWBT</option>
+            <option value="ER">ER</option>
+            <option value="SHAFT SP">SHAFT SP</option>
+            <option value="PIPE DUCT">PIPE DUCT</option>
+            <option value="HFOT">HFOT</option>
+            <option value="VLSFOT">VLSFOT</option>
+            <option value="MGOT">MGOT</option>
+            <option value="VOID SP">VOID SP</option>
+            <option value="COFFERDAM">COFFERDAM</option>
+            <option value="BUNKER SP">BUNKER SP</option>
+            <option value="ACC LADDER SP">ACC LADDER SP</option>
+        </select></div>
+        <div><label>CH No.</label><input type="number" id="areaSerNo" class="w-3ch"></div>
+        <div><label>Sec.</label><select id="areaSerSec" class="w-2ch"><option value=""></option><option value="A">A</option><option value="M">M</option><option value="F">F</option></select></div>
+        <div id="wrapAreaSide"><label>Side</label><select id="areaSide" class="w-3ch" onchange="syncSide(this.value)"><option value=""></option><option value="P">P</option><option value="C">C</option><option value="S">S</option><option value="CP">CP</option><option value="CS">CS</option></select></div>
+    </div>
+
+    <div class="section-title">Location</div>
+    <div class="flex-row">
+        <div style="flex:1"><label>FR.</label><input type="number" id="posX" style="width:100%"></div>
+        <div style="flex:1"><label>FL. No.</label><input type="number" id="posZ" style="width:100%"></div>
+        <div style="flex:2"><label>Loc. Rem.</label><select id="locRem" style="width:100%"><option value=""></option><option value="UD">UD</option><option value="2D">2D</option><option value="3D">3D</option><option value="4D">4D</option><option value="DB">DB</option><option value="H.COAM.TOP">H.COAM.TOP</option><option value="FCLE.D">FCLE.D</option><option value="A.MOOR.D">A.MOOR.D</option><option value="POOP.D">POOP.D</option><option value="AD">AD</option><option value="BD">BD</option><option value="CD">CD</option><option value="DD">DD</option><option value="ED">ED</option><option value="FD">FD</option><option value="NAV.D">NAV.D</option><option value="COM.D">COM.D</option><option value="E2D">E2D</option><option value="E3D">E3D</option><option value="E.MAIN FLR">E.MAIN FLR</option><option value="E.AD">E.AD</option><option value="E.BD">E.BD</option><option value="E.CD">E.CD</option><option value="E.DD">E.DD</option><option value="E.CAS.TOP">E.CAS.TOP</option><option value="STR.">STR.</option><option value="Cntr. FL.">Cntr. FL.</option></select></div>
+        <div style="flex:1"><label>GIR. No.</label><input type="number" id="posY" style="width:100%"></div>
+        <div style="flex:1"><label>Side (Pos.)</label><select id="posSide" style="width:100%"><option value=""></option><option value="P">P</option><option value="C">C</option><option value="S">S</option><option value="CP">CP</option><option value="CS">CS</option></select></div>
+    </div>
+
+    <div class="section-title">Structural Detail <span id="weightDisplay" class="weight-badge">0 kg</span></div>
+    <div class="flex-row">
+        <div style="flex:2"><label>Plane</label><select id="memberName" style="width:100%"><option value=""></option><option value="SHELL">SHELL</option><option value="DECK/FLAT/STR">DECK/FLAT/STR</option><option value="L.BHD/GIR/WEB">L.BHD/GIR/WEB</option><option value="T.BHD/WEB">T.BHD/WEB</option></select></div>
+        <div style="flex:1"><label>Type</label><select id="memberType" style="width:100%" onchange="handleTypeChange(this.value)"><option value=""></option><option value="Plate/FB">Plate/FB</option><option value="BP">BP</option><option value="EA">EA</option><option value="IA">IA</option><option value="UA">UA</option><option value="T-bar">T-bar</option><option value="Outfitting">Outfitting</option></select></div>
+        <div id="wrapCode" style="flex:1"><label>Code</label><select id="memberCode" style="width:100%" onchange="updateCalc()"></select></div>
+    </div>
+    
+    <div id="gridStandard" class="flex-row" style="margin-top:5px;">
+        <div id="wrapL"><label>L(m)</label><input type="number" id="dimL" class="w-2ch" step="any" oninput="updateCalc()"></div>
+        <div id="wrapW"><label>W(m)</label><input type="number" id="dimW" class="w-2ch" step="any" oninput="updateCalc()"></div>
+        <div id="wrapT"><label>t(mm)</label><input type="number" id="dimT" class="w-2ch" step="any" oninput="updateCalc()"></div>
+        <div><label>Grade</label><select id="matGrade" class="w-4ch" onchange="updateCalc()"></select></div>
+        <div><label>PCS</label><input type="number" id="dimPcs" value="1" class="w-2ch" oninput="updateCalc()"></div>
+    </div>
+
+    <div id="gridTBar" class="hidden" style="margin-top:5px;">
+        <div class="flex-row">
+            <div><label>L(m)</label><input type="number" id="tL" class="w-2ch" step="any" oninput="updateCalc()"></div>
+            <div><label>H_web</label><input type="number" id="hWeb" class="w-2ch" step="any" oninput="updateCalc()"></div>
+            <div><label>t_web</label><input type="number" id="tWeb" class="w-2ch" step="any" oninput="updateCalc()"></div>
+            <div><label>W_fl</label><input type="number" id="wFl" class="w-2ch" step="any" oninput="updateCalc()"></div>
+            <div><label>t_fl</label><input type="number" id="tFl" class="w-2ch" step="any" oninput="updateCalc()"></div>
+            <div><label>Grade</label><select id="matGradeT" class="w-4ch" onchange="updateCalc()"></select></div>
+            <div><label>PCS</label><input type="number" id="tPcs" value="1" class="w-2ch" oninput="updateCalc()"></div>
+        </div>
+    </div>
+
+    <div class="section-title">Condition & Action</div>
+    <div class="flex-row">
+        <div style="flex:1"><label>Condition</label><select id="defectType" style="width:100%"><option value=""></option><option value="Good">Good</option><option value="Fair">Fair</option><option value="Poor">Poor</option><option value="hole">hole</option><option value="substantial corrosion">substantial corrosion</option><option value="over wastage">over wastage</option><option value="deform/dent">deform/dent</option><option value="coating breakdown">coating breakdown</option><option value="hard scale">hard scale</option><option value="rectified">rectified</option></select></div>
+        <div style="width: 60px;"><label>% Area</label><input type="number" id="areaPct" style="width:100%"></div>
+        <div style="flex:1"><label>Req. Action</label><select id="reqAction" style="width:100%" onchange="updateCalc()"><option value=""></option><option value="Renew">Renew</option><option value="Cleaning">Cleaning</option><option value="Welding">Welding</option><option value="derust/coating">derust/coating</option><option value="repair">repair</option></select></div>
+    </div>
+    <div style="margin-top:5px;"><label>Description</label><textarea id="descField"></textarea></div>
+
+    <div style="margin-top:10px;"><label>Photos (Max 4, <24KB ea)</label><input type="file" id="photoInput" multiple accept="image/*" onchange="handleFiles(this.files); this.value=''"><div id="thumbPreview" style="display:flex; overflow-x:auto; padding:5px; background:#f9f9f9; border:1px dashed #ccc; min-height:75px;"></div></div>
+
+    <div class="nav-group"><button class="btn" style="background:var(--accent)" onclick="jumpTo(0)">≪</button><button class="btn" style="background:var(--primary)" onclick="navigate(-1)">＜</button><div id="pageIndicator" style="text-align:center; font-weight:bold; font-size:12px;">1 / 1</div><button class="btn" style="background:var(--primary)" onclick="navigate(1)">＞</button><button class="btn" style="background:var(--accent)" onclick="jumpTo(records.length-1)">≫</button></div>
+
+    <button class="btn btn-insert" onclick="insertNewRecord()">➕ INSERT NEW RECORD</button><button class="btn btn-del" onclick="confirmDelete()">🗑 DELETE PRESENT RECORD</button>
+</div>
+
+<footer id="totalSummary">Total Project Renew: 0 kg</footer>
+
+<script>
+    const profileData = { "BP": {"BP180x9.5":16.5, "BP200x10":19.8, "BP230x11":25.1, "BP230x10":25.1043, "BP250x12":29.93205}, "EA": {"EA90x90x6":8.28, "EA90x90x7":9.59, "EA100x100x7":10.7, "EA90x90x10":13.3, "EA120x120x8":14.7, "EA100x100x10":14.9, "EA150x150x10":22.9, "EA150x150x12":27.3, "EA150x150x15":33.6}, "IA": { "IA200x90x8x14":21.823, "IA200x90x9x14":23.3, "IA200x90x10x14":24.7, "IA200x91x10x14":24.8531, "IA250x90x9x14":26.9, "IA250x90x9x15":27.6, "IA250x90x10x15":29.4, "IA250x91x11x15":31.37645, "IA250x90x11x16":31.9, "IA250x90x12x16":33.7, "IA300x90x10x16":34.1, "IA250x91x13x16":35.67825, "IA300x90x11x16":36.3, "IA300x91x12x16":38.6377, "IA300x90x12x17":39.1, "IA300x90x13x17":41.3, "IA350x100x11x17":42.71185, "IA300x91x14x17":43.70095, "IA350x100x12x17":45.3259, "IA350x100x12x18":46.13445, "IA400x100x11.5x16":47.95565, "IA350x101x13x17":48.0734, "IA400x100x12x18":50.84445, "IA400x101x12.5x16":51.09565, "IA400x100x13x18":53.8, "IA400x101x14x18":56.98315, "IA450x125x11.5x18":57.4, "IA450x150x11.5x15":57.65825, "IA450x151x12.5x15":61.19075, "IA500x150x11.5x18":65.4376, "IA550x150x12x21":74.84975, "IA600x150x12.5x23":84.466 }, "UA": {"UA100x75x7":9.32, "UA125x75x7":10.7, "UA100x75x10":13, "UA125x75x10":14.915, "UA150x90x9":16.4379, "UA150x90x12":21.5}, "Plate/FB": {"PL":0, "FB":0}, "Outfitting": {"Vent":0, "Air Esc. Head":0, "Grating":0, "Handrail":0, "Hatch/Door":0, "Cntr. Socket":0, "Ladder":0, "Pipe":0, "Others":0} };
+    let db, records = [{}], currentIndex = 0, currentPhotos = [];
+    const request = indexedDB.open("EverCAP_DB_V793", 1);
+    request.onupgradeneeded = e => e.target.result.createObjectStore("logs", { autoIncrement: true });
+    request.onsuccess = e => { db = e.target.result; loadFromDB(); };
+
+    function showAbout() { alert("EverCAP v7.9.3\nProduced by Adam M.T. Chen\nFeb. 2026\nAll Rights Reserved"); }
+
+    function checkDateColor() { const f = document.getElementById('inspDate'); const t = new Date().toISOString().split('T')[0]; f.style.color = (f.value === t) ? "red" : "black"; }
+    function insertNewRecord() { capture(); records.splice(currentIndex + 1, 0, { ...records[currentIndex], images: [], weight: 0 }); currentIndex++; display(); saveToDB(); }
+    function confirmDelete() { if (confirm("Delete?")) { records.splice(currentIndex, 1); if (records.length === 0) records = [{}]; if (currentIndex >= records.length) currentIndex = records.length - 1; display(); saveToDB(); } }
+    function v(id){ return parseFloat(document.getElementById(id).value)||0; }
+
+    function handleAreaChange(cat) {
+        const wrap = document.getElementById('wrapAreaSide'), select = document.getElementById('areaSide');
+        const forbidden = ['CARGO HOLD', 'LASHING BRIDGE', 'FORE MOOR DK', 'AFT MOOR DK', 'ACCOMMODATION', 'ENG CASING', 'ER', 'SHAFT SP', 'PIPE DUCT'];
+        if (forbidden.includes(cat)) { wrap.classList.add('hidden'); select.value = ""; } else { wrap.classList.remove('hidden'); }
+    }
+
+    function handleTypeChange(type, val, mat) {
+        const std = document.getElementById('gridStandard'), tbar = document.getElementById('gridTBar'), wrapCode = document.getElementById('wrapCode');
+        std.classList.remove('hidden'); tbar.classList.add('hidden'); wrapCode.classList.remove('hidden');
+        document.getElementById('wrapW').classList.add('hidden'); document.getElementById('wrapT').classList.add('hidden');
+        if (type === "Plate/FB") { document.getElementById('wrapW').classList.remove('hidden'); document.getElementById('wrapT').classList.remove('hidden'); }
+        else if (type === "T-bar") { std.classList.add('hidden'); tbar.classList.remove('hidden'); wrapCode.classList.add('hidden'); }
+        updateCodes(type, val); updateMatGrades(type, mat); updateCalc();
+    }
+
+    function calcWeight(row = null) {
+        let a, t, h, tw, w, tf, L, p, c, W, T;
+        if (row) { a = row.req_action; t = row.m_type; h = parseFloat(row.hWeb)||0; tw = parseFloat(row.tWeb)||0; w = parseFloat(row.wFl)||0; tf = parseFloat(row.tFl)||0; L = parseFloat(row.L_m)||0; p = parseFloat(row.PCS)||0; c = row.m_code; W = parseFloat(row.W_m)||0; T = parseFloat(row.t_mm)||0; }
+        else { a = document.getElementById('reqAction').value; t = document.getElementById('memberType').value; h = v('hWeb'); tw = v('tWeb'); w = v('wFl'); tf = v('tFl'); L = v('tL')||v('dimL'); p = v('tPcs')||v('dimPcs'); c = document.getElementById('memberCode').value; W = v('dimW'); T = v('dimT'); }
+        let kg = 0;
+        if (a === "Renew" && t !== "Outfitting") {
+            if (t === "T-bar") kg = (((h*tw)+(w*tf))*L*7.85/1000)*p;
+            else if (t === "Plate/FB") kg = (L*W*T*7.85)*p;
+            else kg = (profileData[t] ? (profileData[t][c]||0) : 0)*L*p;
+        }
+        kg = parseFloat(kg.toFixed(2));
+        if (!row) document.getElementById('weightDisplay').innerText = kg + " kg";
+        return kg;
+    }
+
+    function updateCodes(t, val) { const s = document.getElementById('memberCode'); const c = profileData[t] ? Object.keys(profileData[t]) : []; s.innerHTML = "<option value=''></option>" + c.map(x => `<option value="${x}">${x}</option>`).join(""); if(val) s.value = val; }
+    function updateMatGrades(t, m) { const h = ["AH32", "AH36", "DH36", "EH36", "AH40", "DH40", "EH40", "EH47"], o = ["GALV.", "SUS304", "SUS316"], l = (t === "Outfitting") ? o : (t === "" ? [] : h); const html = "<option value=''></option>" + l.map(x => `<option value="${x}">${x}</option>`).join(""); document.getElementById('matGrade').innerHTML = html; document.getElementById('matGradeT').innerHTML = html; if(m) { document.getElementById('matGrade').value = m; document.getElementById('matGradeT').value = m; } }
+    function syncSide(v) { document.getElementById('posSide').value = v; }
+    function openLightbox(src) { document.getElementById('modalImg').src = src; document.getElementById('imgModal').style.display = 'flex'; }
+    
+    function capture() {
+        const f = id => document.getElementById(id).value; const t = f('memberType');
+        records[currentIndex] = {
+            vessel: f('vesselCode'), date: f('inspDate'), inspector: f('inspectorName'), ms: f('pMS'), ce: f('pCE'), co: f('pCO'), e2: f('p2E'), bs: f('pBS'),
+            area_cat: f('areaCat'), area_ser_no: f('areaSerNo'), area_ser_sec: f('areaSerSec'), area_side: f('areaSide'),
+            fr: f('posX'), posZ: f('posZ'), loc_rem: f('locRem'), posY: f('posY'), posSide: f('posSide'),
+            plane: f('memberName'), m_type: t, m_code: t === "T-bar" ? "" : f('memberCode'), 
+            mat_grade: t === "T-bar" ? f('matGradeT') : f('matGrade'), L_m: t === "T-bar" ? f('tL') : f('dimL'), W_m: f('dimW'), t_mm: f('dimT'), 
+            PCS: t === "T-bar" ? f('tPcs') : f('dimPcs'), hWeb: f('hWeb'), tWeb: f('tWeb'), wFl: f('wFl'), tFl: f('tFl'),
+            defect: f('defectType'), area_pct: f('areaPct'), req_action: f('reqAction'), description: f('descField'), weight: calcWeight(), images: [...currentPhotos]
+        }; updateTotalSummary();
+    }
+
+    function display() {
+        const r = records[currentIndex] || {}; const s = (id, v) => { if(document.getElementById(id)) document.getElementById(id).value = v || ""; };
+        s('vesselCode', r.vessel); s('inspDate', r.date); s('inspectorName', r.inspector); s('pMS', r.ms); s('pCE', r.ce); s('pCO', r.co); s('p2E', r.e2); s('pBS', r.bs);
+        s('areaCat', r.area_cat); handleAreaChange(r.area_cat);
+        s('areaSerNo', r.area_ser_no); s('areaSerSec', r.area_ser_sec); s('areaSide', r.area_side);
+        s('posX', r.fr); s('posZ', r.posZ); s('locRem', r.loc_rem); s('posY', r.posY); s('posSide', r.posSide);
+        s('memberName', r.plane); s('memberType', r.m_type || "");
+        handleTypeChange(r.m_type || "", r.m_code, r.mat_grade);
+        if (r.m_type === "T-bar") { s('hWeb', r.hWeb); s('tWeb', r.tWeb); s('wFl', r.wFl); s('tFl', r.tFl); s('tL', r.L_m); s('tPcs', r.PCS); }
+        else { s('dimL', r.L_m); s('dimW', r.W_m); s('dimT', r.t_mm); s('dimPcs', r.PCS); }
+        s('defectType', r.defect); s('areaPct', r.area_pct); s('reqAction', r.req_action); s('descField', r.description);
+        currentPhotos = Array.isArray(r.images) ? [...r.images] : []; renderPhotos(); calcWeight(); updateTotalSummary(); checkDateColor();
+        document.getElementById('pageIndicator').innerText = `${currentIndex + 1} / ${records.length}`;
+    }
+
+    function updateCalc() { calcWeight(); }
+    function updateTotalSummary() { let total = records.reduce((sum, r) => sum + (parseFloat(r.weight) || 0), 0); document.getElementById('totalSummary').innerText = `Total Project Renew: ${total.toFixed(2)} kg`; }
+
+    async function handleFiles(files) {
+        if (!files || files.length === 0) return;
+        const processQueue = Array.from(files).slice(0, 4 - currentPhotos.length);
+        for (let f of processQueue) {
+            await new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.readAsDataURL(f);
+                reader.onload = (e) => {
+                    const img = new Image();
+                    img.src = e.target.result;
+                    img.onload = () => {
+                        let q = 0.5, w = 600, dUrl = "";
+                        const canvas = document.createElement('canvas');
+                        do {
+                            const h = (img.height / img.width) * w;
+                            canvas.width = w; canvas.height = h;
+                            canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+                            dUrl = canvas.toDataURL('image/jpeg', q);
+                            if (dUrl.length > 32000) { q -= 0.1; w -= 50; } else { q -= 0.05; }
+                        } while (dUrl.length > 32000 && w > 200 && q > 0.05);
+                        currentPhotos.push(dUrl);
+                        resolve();
+                    };
+                };
+            });
+        }
+        renderPhotos(); capture(); saveToDB();
+    }
+
+    function renderPhotos() { document.getElementById('thumbPreview').innerHTML = currentPhotos.map((src, idx) => `<div class="thumb-container"><img src="${src}" class="thumb" onclick="openLightbox('${src}')"><button class="del-img-btn" onclick="confirmDeletePhoto(${idx})">×</button></div>`).join(""); }
+    function confirmDeletePhoto(idx) { if (confirm("Delete?")) { currentPhotos.splice(idx, 1); renderPhotos(); capture(); saveToDB(); } }
+    async function navigate(dir) { capture(); const nextIdx = currentIndex + dir; if (nextIdx >= 0 && nextIdx < records.length) { currentIndex = nextIdx; display(); saveToDB(); } }
+    async function jumpTo(idx) { capture(); currentIndex = idx; display(); saveToDB(); }
+    function saveToDB() { if (!db) return; const tx = db.transaction("logs", "readwrite"); tx.objectStore("logs").clear().onsuccess = () => records.forEach(r => tx.objectStore("logs").add(r)); }
+    function loadFromDB() { db.transaction("logs").objectStore("logs").getAll().onsuccess = e => { if (e.target.result.length) { records = e.target.result; currentIndex = 0; display(); } }; }
+
+    function exportToExcel() {
+        capture();
+        let preparedRecords = records.map((r, idx) => ({ ...r, RecNo: idx + 1 }));
+        let sortedSet = preparedRecords.slice().sort((a, b) => {
+            return String(a.vessel).localeCompare(String(b.vessel)) || String(a.area_cat).localeCompare(String(b.area_cat)) || (parseFloat(a.area_ser_no) - parseFloat(b.area_ser_no)) || String(a.area_ser_sec).localeCompare(String(b.area_ser_sec)) || String(a.area_side).localeCompare(String(b.area_side)) || String(a.plane).localeCompare(String(b.plane)) || (parseFloat(a.posZ) - parseFloat(b.posZ)) || String(a.posSide).localeCompare(String(b.posSide)) || (parseFloat(a.posY) - parseFloat(b.posY)) || (parseFloat(a.fr) - parseFloat(b.fr)) || String(a.date).localeCompare(String(b.date));
+        }).map(r => {
+            let copy = { ...r }; if(copy.m_type !== "T-bar") { copy.hWeb = ""; copy.tWeb = ""; copy.wFl = ""; copy.tFl = ""; } if(copy.m_type !== "Plate/FB") { copy.W_m = ""; copy.t_mm = ""; }
+            copy.Image_1 = copy.images[0] || ""; copy.Image_2 = copy.images[1] || ""; copy.Image_3 = copy.images[2] || ""; copy.Image_4 = copy.images[3] || ""; delete copy.images; return copy;
+        });
+        const ws = XLSX.utils.json_to_sheet(sortedSet); const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "CAP_Data"); XLSX.writeFile(wb, "EverCAP_Data_V793.xlsx");
+    }
+
+    function importExcel(input) {
+        const reader = new FileReader();
+        reader.onload = e => {
+            const data = XLSX.read(new Uint8Array(e.target.result), {type: 'array'});
+            let raw = XLSX.utils.sheet_to_json(data.Sheets[data.SheetNames[0]]).filter(r => r.vessel !== "TOTAL RENEW WEIGHT (KG):");
+            records = raw.map(r => {
+                const row = { ...r, images: [] };
+                if(r.Image_1) row.images.push(r.Image_1); if(r.Image_2) row.images.push(r.Image_2);
+                if(r.Image_3) row.images.push(r.Image_3); if(r.Image_4) row.images.push(r.Image_4);
+                delete row.Image_1; delete row.Image_2; delete row.Image_3; delete row.Image_4;
+                row.m_type = r.m_type || r.Type; row.req_action = r.req_action || r.reqAction;
+                row.mat_grade = r.mat_grade || r.Grade; row.defect = r.defect || r.Condition;
+                if (r.date && typeof r.date === 'number') { const d = XLSX.SSF.parse_date_code(r.date); row.date = `${d.y}-${String(d.m).padStart(2, '0')}-${String(d.d).padStart(2, '0')}`; }
+                row.weight = calcWeight(row);
+                return row;
+            });
+            currentIndex = 0; display(); updateTotalSummary(); saveToDB();
+        };
+        reader.readAsArrayBuffer(input.files[0]);
+    }
+
+    async function generateStrictReport(input) {
+        const file = input.files[0]; if(!file) return; const reader = new FileReader();
+        reader.onload = async (e) => {
+            try {
+                const data = XLSX.read(new Uint8Array(e.target.result), {type: 'array'});
+                let raw = XLSX.utils.sheet_to_json(data.Sheets[data.SheetNames[0]]).filter(r => r.vessel !== "TOTAL RENEW WEIGHT (KG):");
+                const { Document, Packer, Paragraph, ImageRun, TextRun, AlignmentType, BorderStyle } = window.docx;
+                const children = [ 
+                    new Paragraph({ children: [new TextRun({ text: "EverCAP REPORT", bold: true, size: 32, underline: {} })], alignment: AlignmentType.CENTER, spacing: { after: 100 } }), 
+                    new Paragraph({ children: [new TextRun({ text: "Reported by: ", bold: true, size: 24 }), new TextRun({ text: "Date: ", bold: true, size: 24, break: 1 })], spacing: { before: 120, after: 120 } }),
+                    new Paragraph({ border: { top: { style: BorderStyle.SINGLE, size: 6 }, bottom: { style: BorderStyle.SINGLE, size: 6 } }, spacing: { before: 100, after: 100 }, children: [ 
+                        new TextRun({ text: "Layout of the content:", bold: true, size: 24, break: 1 }), 
+                        new TextRun({ text: "PLANE-No.-SIDE", size: 28, underline: {}, break: 1 }), 
+                        new TextRun({ text: "\tLOCATION", bold: true, size: 28, break: 1 }), 
+                        new TextRun({ text: "\t\tDate of Insp: Structural detail", size: 28, break: 1 }), 
+                        new TextRun({ text: "\t\tCondition: Percentage of area: Required Action", size: 28, break: 1 }), 
+                        new TextRun({ text: "\t\tDescription", size: 28, break: 1 }) 
+                    ]}), 
+                    new Paragraph({ children: [new TextRun({ text: "" })], spacing: { after: 300 } }) 
+                ];
+                let lastV="", lastA="", lastP1="", lastP2="", vWeight=0;
+                raw.forEach((item, idx) => {
+                    if(lastV !== "" && item.vessel !== lastV) { children.push(new Paragraph({ children: [new TextRun({ text: `TOTAL STEEL RENEWAL FOR ${lastV}: ${vWeight.toFixed(2)} kg`, bold: true, color: "008144", size: 32 })], spacing: { before: 120, after: 120 } })); vWeight=0; }
+                    if(item.vessel !== lastV) { children.push(new Paragraph({ children: [new TextRun({ text: "Vessel Name: " + item.vessel, bold: true, size: 32 })], spacing: { before: 120 } })); lastV = item.vessel; lastA=""; lastP1=""; lastP2=""; }
+                    vWeight += parseFloat(item.weight || 0);
+                    const areaParts = [item.area_cat, item.area_ser_no, item.area_ser_sec, item.area_side].filter(p => p && p !== "unidentified");
+                    const areaStr = areaParts.join(" - ");
+                    if(areaStr !== lastA) { children.push(new Paragraph({ children: [new TextRun({ text: areaStr, size: 32, underline: true })], indent: { left: 480 }, spacing: { before: 120 } })); lastA = areaStr; lastP1=""; lastP2=""; }
+                    let p1 = "", p2 = "";
+                    const s = (val) => (val && val !== "unidentified" ? val : "");
+                    const loc = item.loc_rem ? `(${item.loc_rem})` : "";
+                    if (item.plane === "DECK/FLAT/STR") { p1 = `${item.plane}-No. ${s(item.posZ)}${loc}-${s(item.posSide)}`; p2 = `GIR.${s(item.posY)}-FR.${s(item.fr)}`; }
+                    else if (item.plane === "L.BHD/GIR/WEB") { p1 = `${item.plane}-No.${s(item.posY)}-${s(item.posSide)}`; p2 = `FL.${s(item.posZ)}${loc}-FR.${s(item.fr)}`; }
+                    else if (item.plane === "T.BHD/WEB") { p1 = `${item.plane}-Fr.${s(item.fr)}-${s(item.posSide)}`; p2 = `FL.${s(item.posZ)}${loc}-GIR.${s(item.posY)}`; }
+                    else if (item.plane === "SHELL") { p1 = `${item.plane}-FR.${s(item.fr)}-${s(item.posSide)}`; p2 = `FL.${s(item.posZ)}${loc}-GIR.${s(item.posY)}`; }
+                    p1 = p1.replace(/-+$/, "").trim(); p2 = p2.replace(/-+$/, "").trim();
+                    if(p1 !== lastP1) { children.push(new Paragraph({ children: [new TextRun({ text: p1, bold: true, size: 28 })], indent: { left: 960 }, spacing: { before: 120 } })); lastP1 = p1; lastP2 = ""; }
+                    if(p2 !== lastP2) { children.push(new Paragraph({ children: [new TextRun({ text: p2, bold: true, size: 28 })], indent: { left: 1440 } })); lastP2 = p2; }
+                    let d = item.m_type === "T-bar" ? `${item.hWeb}x${item.tWeb}+${item.wFl}x${item.tFl} x ${item.L_m}(m)` : (item.m_type === "Plate/FB" ? `${item.L_m}(m)x${item.W_m}(m)x${item.t_mm}` : `${item.L_m}(m)`);
+                    children.push(new Paragraph({ children: [new TextRun({ text: `${item.date}:${item.m_type}:${item.m_code || ''}:${d}${item.mat_grade ? ' ('+item.mat_grade+')' : ''}×${item.PCS}pcs`, size: 28 })], indent: { left: 1440 } }));
+                    children.push(new Paragraph({ children: [new TextRun({ text: `${item.defect}:${item.area_pct}%:${item.req_action}`, size: 28 })], indent: { left: 1440 } }));
+                    if(item.description) children.push(new Paragraph({ children: [new TextRun({ text: "Description : " + item.description, size: 28 })], indent: { left: 1440 } }));
+                    let imgs = [item.Image_1, item.Image_2, item.Image_3, item.Image_4].filter(x => x).map(src => new ImageRun({ data: Uint8Array.from(atob(src.split(",")[1]), c => c.charCodeAt(0)), transformation: { width: 283.5, height: 211.6 }, type: "jpg" }));
+                    for(let i = 0; i < imgs.length; i += 2) children.push(new Paragraph({ children: imgs.slice(i, i+2), indent: { left: 1440 }, spacing: { before: 120 } }));
+                    children.push(new Paragraph({ children: [new TextRun({ text: "----------------------------------------------------------------------------------------------------", size: 20 })], indent: { left: 1440 }, spacing: { before: 120, after: 120 } }));
+                    if(idx === raw.length - 1) children.push(new Paragraph({ children: [new TextRun({ text: `TOTAL STEEL RENEWAL FOR ${item.vessel}: ${vWeight.toFixed(2)} kg`, bold: true, color: "008144", size: 32 })], spacing: { before: 120, after: 120 } }));
+                });
+                const doc = new Document({ sections: [{ properties: { page: { margin: { top: 567, bottom: 567, left: 850, right: 567 } } }, children }] });
+                const blob = await Packer.toBlob(doc); saveAs(blob, "EverCAP_Report.docx");
+            } catch (err) { alert(err.message); }
+        }; reader.readAsArrayBuffer(file);
+    }
+</script>
+</body>
+</html>
