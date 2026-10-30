@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>EverCAP v8.0.12</title>
+    <title>EverCAP v8.0.13</title>
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="https://unpkg.com/docx@7.1.1/build/index.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js"></script>
@@ -39,7 +39,7 @@
 <body onclick="document.getElementById('myDropdown').classList.remove('show')">
 
 <header>
-    <span>EverCAP v8.0.12</span>
+    <span>EverCAP v8.0.13</span>
     <button class="menu-btn" onclick="event.stopPropagation(); document.getElementById('myDropdown').classList.toggle('show')">☰</button>
     <div id="myDropdown" class="dropdown-content">
         <label for="fileImport">📂 Import Data</label>
@@ -131,14 +131,14 @@
 <script>
     // Logic remains identical to previous versions v8.0.11
     const catCodeMap = { "SHELL":"002", "BT TUNNEL":"004", "BILGE KEEL":"006", "SEA CHEST":"008", "RUDDER":"010", "PROPELLER":"012", "ACC LADDER SP":"015", "CARGO HOLD":"032", "FPT":"041", "DBWBT":"045", "LWBT":"047", "WBT":"050", "APT":"053", "HFOT":"062", "VLSFOT":"066", "MGOT":"071", "HATCH COAMING":"110", "LASHING BRIDGE":"112", "FORE MOOR DK":"115", "UPPER DECK":"119", "AFT MOOR DK":"123", "HATCH COVER":"141", "ACCOMMODATION":"151", "ENG CASING":"159", "BS STR":"171", "BTR":"175", "2D PASS":"179", "SGR":"184", "ER":"191", "SHAFT SP":"196", "PIPE DUCT":"203", "VOID SP":"212", "COFFERDAM":"221", "BUNKER SP":"229" };
-    const profileData = { "BP": {"BP180x9.5":16.5, "BP200x10":19.8, "BP230x11":25.1, "BP230x10":25.1043, "BP250x12":29.93205}, "EA": {"EA90x90x6":8.28, "EA90x90x7":9.59, "EA100x100x7":10.7, "EA90x90x10":13.3, "EA120x120x8":14.7, "EA100x100x10":14.9, "EA150x150x10":22.9, "EA150x150x12":27.3, "EA150x150x15":33.6}, "IA": { "IA200x90x8x14":21.823, "IA200x90x9x14":23.3, "IA200x90x10x14":24.7, "IA200x91x10x14":24.8531, "IA250x90x9x14":26.9, "IA250x90x9x15":27.6, "IA250x90x10x15":29.4, "IA250x91x11x15":31.37645, "IA250x90x11x16":31.9, "IA250x90x12x16":33.7, "IA300x90x10x16":34.1, "IA250x91x13x16":35.67825, "IA300x90x11x16":36.3, "IA300x91x12x16":38.6377, "IA300x90x12x17":39.1, "IA300x90x13x17":41.3, "IA350x100x11x17":42.71185, "IA300x91x14x17":43.70095, "IA350x100x12x17":45.3259, "IA350x100x12x18":46.13445, "IA400x100x11.5x16":47.95565, "IA350x101x13x17":48.0734, "IA400x100x12x18":50.84445, "IA400x101x12.5x16":51.09565, "IA400x100x13x18":53.8, "IA400x101x14x18":56.98315, "IA450x125x11.5x18":57.4, "IA450x150x11.5x15":57.65825, "IA450x151x12.5x15":61.19075, "IA500x150x11.5x18":65.4376, "IA550x150x12x21":74.84975, "IA600x150x12.5x23":84.466 }, "UA": {"UA100x75x7":9.32, "UA125x75x7":10.7, "UA100x75x10":13, "UA125x75x10":14.915, "UA150x90x9":16.4379, "UA150x90x12":21.5}, "Plate/FB": {"PL":0, "FB":0}, "Outfitting": {"Vent":0, "Air Esc. Head":0, "Grating":0, "Handrail":0, "Hatch/Door":0, "Cntr. Socket":0, "Ladder":0, "Pipe":0, "Mooring":0, "Others":0} };
+    const profileData = { "BP": {"BP140x7":11.1, "BP180x9.5":16.5, "BP200x10":19.8, "BP230x11":25.1, "BP230x10":25.1043, "BP250x12":29.93205}, "EA": {"EA90x90x6":8.28, "EA90x90x7":9.59, "EA100x100x7":10.7, "EA90x90x10":13.3, "EA120x120x8":14.7, "EA100x100x10":14.9, "EA150x150x10":22.9, "EA150x150x12":27.3, "EA150x150x15":33.6}, "IA": { "IA200x90x8x14":21.823, "IA200x90x9x14":23.3, "IA200x90x10x14":24.7, "IA200x91x10x14":24.8531, "IA250x90x9x14":26.9, "IA250x90x9x15":27.6, "IA250x90x10x15":29.4, "IA250x91x11x15":31.37645, "IA250x90x11x16":31.9, "IA250x90x12x16":33.7, "IA300x90x10x16":34.1, "IA250x91x13x16":35.67825, "IA300x90x11x16":36.3, "IA300x91x12x16":38.6377, "IA300x90x12x17":39.1, "IA300x90x13x17":41.3, "IA350x100x11x17":42.71185, "IA300x91x14x17":43.70095, "IA350x100x12x17":45.3259, "IA350x100x12x18":46.13445, "IA400x100x11.5x16":47.95565, "IA350x101x13x17":48.0734, "IA400x100x12x18":50.84445, "IA400x101x12.5x16":51.09565, "IA400x100x13x18":53.8, "IA400x101x14x18":56.98315, "IA450x125x11.5x18":57.4, "IA450x150x11.5x15":57.65825, "IA450x151x12.5x15":61.19075, "IA500x150x11.5x18":65.4376, "IA550x150x12x21":74.84975, "IA600x150x12.5x23":84.466 }, "UA": {"UA100x75x7":9.32, "UA125x75x7":10.7, "UA100x75x10":13, "UA125x75x10":14.915, "UA150x90x9":16.4379, "UA150x90x12":21.5}, "Plate/FB": {"PL":0, "FB":0}, "Outfitting": {"Vent":0, "Air Esc. Head":0, "Grating":0, "Handrail":0, "Hatch/Door":0, "Cntr. Socket":0, "Ladder":0, "Pipe":0, "Mooring":0, "Others":0} };
     let db, records = [{}], currentIndex = 0, currentPhotos = [], exportSerial = 1;
 
     const request = indexedDB.open("EverCAP_DB_V8012", 1);
     request.onupgradeneeded = e => e.target.result.createObjectStore("logs", { autoIncrement: true });
     request.onsuccess = e => { db = e.target.result; loadFromDB(); };
 
-    function showAbout() { alert("EverCAP v8.0.12\nProduced by Adam M.T. Chen\nMar. 2026\nAll Rights Reserved"); }
+    function showAbout() { alert("EverCAP v8.0.13\nProduced by Adam M.T. Chen\nMar. 2026\nAll Rights Reserved"); }
     function checkDateColor() { const f = document.getElementById('inspDate'); const t = new Date().toISOString().split('T')[0]; f.style.color = (f.value === t) ? "red" : "black"; }
     function insertNewRecord() { capture(); records.splice(currentIndex + 1, 0, { ...records[currentIndex], images: [], weight: 0 }); currentIndex++; display(); saveToDB(); }
     function confirmDelete() { if (confirm("Delete?")) { records.splice(currentIndex, 1); if (records.length === 0) records = [{}]; if (currentIndex >= records.length) currentIndex = records.length - 1; display(); saveToDB(); } }
